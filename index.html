@@ -399,57 +399,66 @@
 <script>
 /* ============================================================
    Format catalog.
-   ratio  = width/height of the crop frame.
+   ratio = width/height of the crop frame.
    target = recommended export dimensions in px.
-   safe   = UI-covered margins in px of the target canvas:
-            {top, right, bottom, left}. Everything outside those
-            margins is the safe area; the red bands and the dashed
-            safe box are both derived from these numbers.
+   zones = UI-covered regions as fractions of the frame:
+           {top,left,w,h,label}.
 
-   Sources: TikTok creator safe-zone spec (130 top / 484 bottom /
-   140 right rail / 44 left), Instagram Reels (108 / 400 / 120 / 60),
-   Meta Stories unified spec Mar 2026 (250 top / 384 bottom),
-   Facebook Reels (250 top / 672 bottom).
+   These fractions are matched against real screenshots of posts
+   as they appear to a viewer on a phone — not against the
+   published "ads safe zone" numbers, which reserve far more of
+   the bottom than the organic feed actually covers.
    ============================================================ */
-const SAFE = {
-  tiktok:   { top: 130, right: 140, bottom: 484, left: 44,
-              labels: { top: "TOP UI", right: "ICON RAIL", bottom: "CAPTION / NAV" } },
-  igReel:   { top: 108, right: 120, bottom: 400, left: 60,
-              labels: { top: "TOP UI", right: "ICON RAIL", bottom: "CAPTION / AUDIO / NAV" } },
-  igStory:  { top: 250, right: 60,  bottom: 384, left: 60,
-              labels: { top: "PROFILE / PROGRESS BAR", bottom: "REPLY BAR" } },
-  fbStory:  { top: 250, right: 60,  bottom: 384, left: 60,
-              labels: { top: "PROFILE / PROGRESS BAR", bottom: "REPLY BAR / CTA" } },
-  fbReel:   { top: 250, right: 120, bottom: 672, left: 60,
-              labels: { top: "TOP UI", right: "ICON RAIL", bottom: "CAPTION / CTA / NAV" } },
-};
+const VERTICAL_UI_ZONES = [
+  { top: 0,     left: 0,    w: 1,    h: 0.08, label: "TOP UI (search / username)" },
+  { top: 0.43,  left: 0.82, w: 0.18, h: 0.40, label: "ICONS" },
+  { top: 0.82,  left: 0,    w: 1,    h: 0.18, label: "CAPTION / NAV" },
+];
+
+const STORY_UI_ZONES = [
+  { top: 0,     left: 0,    w: 1,    h: 0.10, label: "TOP UI (profile / progress bar)" },
+  { top: 0.88,  left: 0,    w: 1,    h: 0.12, label: "REPLY BAR / CTA" },
+];
 
 const FORMATS = {
   "TikTok": [
-    { name: "Video / Photo Post", ratio: 9/16, target: [1080, 1920], safe: SAFE.tiktok },
-    { name: "Story",              ratio: 9/16, target: [1080, 1920], safe: SAFE.tiktok },
-    { name: "Profile Photo",      ratio: 1,    target: [200, 200] },
+    { name: "Video / Photo Post", ratio: 9/16, target: [1080, 1920], zones: VERTICAL_UI_ZONES },
+    { name: "Story",              ratio: 9/16, target: [1080, 1920], zones: STORY_UI_ZONES },
+    { name: "Profile Photo",      ratio: 1,    target: [200, 200],   zones: [] },
   ],
   "Instagram": [
-    { name: "Reel",               ratio: 9/16, target: [1080, 1920], safe: SAFE.igReel },
-    { name: "Story",              ratio: 9/16, target: [1080, 1920], safe: SAFE.igStory },
-    { name: "Post — Portrait",    ratio: 4/5,  target: [1080, 1350] },
-    { name: "Post — Square",      ratio: 1,    target: [1080, 1080] },
-    { name: "Post — Landscape",   ratio: 1.91, target: [1080, 566]  },
-    { name: "Carousel — Portrait",ratio: 4/5,  target: [1080, 1350] },
-    { name: "Carousel — Square",  ratio: 1,    target: [1080, 1080] },
-    { name: "Profile Photo",      ratio: 1,    target: [320, 320]   },
+    { name: "Reel",               ratio: 9/16, target: [1080, 1920], zones: VERTICAL_UI_ZONES },
+    { name: "Story",              ratio: 9/16, target: [1080, 1920], zones: STORY_UI_ZONES },
+    { name: "Post — Portrait",    ratio: 4/5,  target: [1080, 1350], zones: [] },
+    { name: "Post — Square",      ratio: 1,    target: [1080, 1080], zones: [] },
+    { name: "Post — Landscape",   ratio: 1.91, target: [1080, 566],  zones: [] },
+    { name: "Carousel — Portrait",ratio: 4/5,  target: [1080, 1350], zones: [] },
+    { name: "Carousel — Square",  ratio: 1,    target: [1080, 1080], zones: [] },
+    { name: "Profile Photo",      ratio: 1,    target: [320, 320],   zones: [] },
   ],
   "Facebook": [
-    { name: "Feed Post — Square",   ratio: 1,     target: [1080, 1080] },
-    { name: "Feed Post — Portrait", ratio: 4/5,   target: [1080, 1350] },
-    { name: "Feed Post — Landscape",ratio: 1.91,  target: [1200, 630]  },
-    { name: "Story",                ratio: 9/16,  target: [1080, 1920], safe: SAFE.fbStory },
-    { name: "Reel",                 ratio: 9/16,  target: [1080, 1920], safe: SAFE.fbReel },
-    { name: "Cover Photo",          ratio: 820/312, target: [820, 312] },
-    { name: "Event Cover",          ratio: 1.91,  target: [1200, 628]  },
+    { name: "Feed Post — Square",   ratio: 1,     target: [1080, 1080], zones: [] },
+    { name: "Feed Post — Portrait", ratio: 4/5,   target: [1080, 1350], zones: [] },
+    { name: "Feed Post — Landscape",ratio: 1.91,  target: [1200, 630],  zones: [] },
+    { name: "Story / Reel",         ratio: 9/16,  target: [1080, 1920], zones: VERTICAL_UI_ZONES },
+    { name: "Cover Photo",          ratio: 820/312, target: [820, 312], zones: [] },
+    { name: "Event Cover",          ratio: 1.91,  target: [1200, 628],  zones: [] },
   ],
 };
+
+/* Safe area = what's left once every zone is subtracted. Derived so
+   the dashed box can never disagree with the red bands. */
+function safeRect(zones) {
+  let t = 0, b = 1, l = 0, r = 1;
+  zones.forEach(z => {
+    const bottom = z.top + z.h, right = z.left + z.w;
+    if (z.top <= 0.001 && z.w >= 0.999) t = Math.max(t, bottom);
+    if (bottom >= 0.999 && z.w >= 0.5)  b = Math.min(b, z.top);
+    if (right >= 0.999 && z.left > 0.5) r = Math.min(r, z.left);
+    if (z.left <= 0.001 && z.w < 0.5)   l = Math.max(l, right);
+  });
+  return { t, b, l, r };
+}
 
 /* ---------------- State ---------------- */
 let media = null;           // <img> or <video> element
@@ -594,29 +603,22 @@ function drawOverlay() {
       overlayLayer.append(v, h);
     }
   }
-  if ($("toggleSafe").checked && current.safe) {
-    const s = current.safe, [cw, ch] = current.target;
-    // Insets as fractions of the frame
-    const t = s.top / ch, b = s.bottom / ch, l = s.left / cw, r = s.right / cw;
-
-    const band = (css, label, px, cls) => {
+  if ($("toggleSafe").checked && current.zones.length) {
+    current.zones.forEach(z => {
       const d = document.createElement("div");
-      d.className = "zone" + (cls ? " " + cls : "");
-      d.style.cssText = css;
-      if (label) d.innerHTML = `<span>${label} · ${px}px</span>`;
+      d.className = "zone" + (z.w < 0.3 ? " rail" : "");
+      d.style.cssText = `left:${z.left*100}%; top:${z.top*100}%; width:${z.w*100}%; height:${z.h*100}%;`;
+      d.innerHTML = `<span>${z.label}</span>`;
       overlayLayer.appendChild(d);
-    };
-    // Top and bottom bands span the full width; side rails fill the gap between them.
-    band(`left:0; top:0; width:100%; height:${t*100}%;`, s.labels.top, s.top);
-    band(`left:0; bottom:0; width:100%; height:${b*100}%;`, s.labels.bottom, s.bottom);
-    band(`right:0; top:${t*100}%; bottom:${b*100}%; width:${r*100}%;`, s.labels.right, s.right, "rail");
-    band(`left:0; top:${t*100}%; bottom:${b*100}%; width:${l*100}%;`, null, s.left);
+    });
 
     // The safe area itself — keep headlines and contact info inside this box.
+    const { t, b, l, r } = safeRect(current.zones);
+    const [cw, ch] = current.target;
     const box = document.createElement("div");
     box.className = "safebox";
-    box.style.cssText = `left:${l*100}%; right:${r*100}%; top:${t*100}%; bottom:${b*100}%;`;
-    box.innerHTML = `<span>SAFE AREA ${cw - s.left - s.right}×${ch - s.top - s.bottom}</span>`;
+    box.style.cssText = `left:${l*100}%; right:${(1-r)*100}%; top:${t*100}%; bottom:${(1-b)*100}%;`;
+    box.innerHTML = `<span>SAFE AREA ${Math.round((r-l)*cw)}×${Math.round((b-t)*ch)}</span>`;
     overlayLayer.appendChild(box);
   }
 }
