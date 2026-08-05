@@ -409,26 +409,38 @@
    published "ads safe zone" numbers, which reserve far more of
    the bottom than the organic feed actually covers.
    ============================================================ */
-const VERTICAL_UI_ZONES = [
-  { top: 0,     left: 0,    w: 1,    h: 0.08, label: "TOP UI (search / username)" },
-  { top: 0.43,  left: 0.82, w: 0.18, h: 0.40, label: "ICONS" },
-  { top: 0.82,  left: 0,    w: 1,    h: 0.18, label: "CAPTION / NAV" },
-];
+/* Two distinct chrome layouts:
 
-const STORY_UI_ZONES = [
-  { top: 0,     left: 0,    w: 1,    h: 0.10, label: "TOP UI (profile / progress bar)" },
-  { top: 0.88,  left: 0,    w: 1,    h: 0.12, label: "REPLY BAR / CTA" },
-];
+   feedZones  — in-feed vertical video (TikTok posts, IG Reels, FB Reels).
+                Vertical icon rail down the right side, caption along
+                the bottom.
+   storyZones — stories (IG, FB, TikTok). No right-hand rail at all:
+                the controls sit in a row across the bottom, with the
+                profile row and progress bar across the top. */
+const feedZones = (topLabel, bottomLabel) => ([
+  { top: 0,     left: 0,    w: 1,    h: 0.08, label: topLabel },
+  { top: 0.43,  left: 0.82, w: 0.18, h: 0.40, label: "ICONS" },
+  { top: 0.82,  left: 0,    w: 1,    h: 0.18, label: bottomLabel },
+]);
+
+const storyZones = (topLabel, bottomLabel) => ([
+  { top: 0,     left: 0,    w: 1,    h: 0.10, label: topLabel },
+  { top: 0.86,  left: 0,    w: 1,    h: 0.14, label: bottomLabel },
+]);
 
 const FORMATS = {
   "TikTok": [
-    { name: "Video / Photo Post", ratio: 9/16, target: [1080, 1920], zones: VERTICAL_UI_ZONES },
-    { name: "Story",              ratio: 9/16, target: [1080, 1920], zones: STORY_UI_ZONES },
+    { name: "Video / Photo Post", ratio: 9/16, target: [1080, 1920],
+      zones: feedZones("TOP UI (search / username)", "CAPTION / NAV") },
+    { name: "Story",              ratio: 9/16, target: [1080, 1920],
+      zones: storyZones("PROFILE / PROGRESS BAR", "VIEWERS / REPLY BAR") },
     { name: "Profile Photo",      ratio: 1,    target: [200, 200],   zones: [] },
   ],
   "Instagram": [
-    { name: "Reel",               ratio: 9/16, target: [1080, 1920], zones: VERTICAL_UI_ZONES },
-    { name: "Story",              ratio: 9/16, target: [1080, 1920], zones: STORY_UI_ZONES },
+    { name: "Reel",               ratio: 9/16, target: [1080, 1920],
+      zones: feedZones("TOP UI (search / username)", "CAPTION / AUDIO / NAV") },
+    { name: "Story",              ratio: 9/16, target: [1080, 1920],
+      zones: storyZones("PROFILE / PROGRESS BAR", "REPLY BAR / REACTIONS") },
     { name: "Post — Portrait",    ratio: 4/5,  target: [1080, 1350], zones: [] },
     { name: "Post — Square",      ratio: 1,    target: [1080, 1080], zones: [] },
     { name: "Post — Landscape",   ratio: 1.91, target: [1080, 566],  zones: [] },
@@ -440,7 +452,10 @@ const FORMATS = {
     { name: "Feed Post — Square",   ratio: 1,     target: [1080, 1080], zones: [] },
     { name: "Feed Post — Portrait", ratio: 4/5,   target: [1080, 1350], zones: [] },
     { name: "Feed Post — Landscape",ratio: 1.91,  target: [1200, 630],  zones: [] },
-    { name: "Story / Reel",         ratio: 9/16,  target: [1080, 1920], zones: VERTICAL_UI_ZONES },
+    { name: "Story",                ratio: 9/16,  target: [1080, 1920],
+      zones: storyZones("PROFILE / PROGRESS BAR", "REPLY BAR / REACTIONS") },
+    { name: "Reel",                 ratio: 9/16,  target: [1080, 1920],
+      zones: feedZones("TOP UI", "CAPTION / CTA / NAV") },
     { name: "Cover Photo",          ratio: 820/312, target: [820, 312], zones: [] },
     { name: "Event Cover",          ratio: 1.91,  target: [1200, 628],  zones: [] },
   ],
