@@ -1,0 +1,697 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<link rel="icon" type="image/png" href="icon.png">
+<link rel="apple-touch-icon" href="icon.png">
+</head>
+<body>
+<title>Social Crop Previewer</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  :root {
+    --bg: #12131a;
+    --panel: #1c1e28;
+    --panel2: #242736;
+    --text: #e8eaf2;
+    --muted: #9aa0b4;
+    --accent: #5b8cff;
+    --danger: rgba(235, 87, 87, 0.45);
+    --danger-border: #eb5757;
+    --border: #32364a;
+    --check-a: #191b24;
+    --check-b: #15161e;
+    --infobg: rgba(20,22,30,.92);
+    --shadow: rgba(0,0,0,.6);
+  }
+  @media (prefers-color-scheme: light) {
+    :root {
+      --bg: #eef0f6;
+      --panel: #ffffff;
+      --panel2: #e9ebf2;
+      --text: #1d2130;
+      --muted: #5c6275;
+      --accent: #3b6ef5;
+      --border: #d3d7e3;
+      --check-a: #e2e4ec;
+      --check-b: #d8dae4;
+      --infobg: rgba(255,255,255,.94);
+      --shadow: rgba(30,40,80,.25);
+    }
+  }
+  :root[data-theme="light"] {
+    --bg: #eef0f6;
+    --panel: #ffffff;
+    --panel2: #e9ebf2;
+    --text: #1d2130;
+    --muted: #5c6275;
+    --accent: #3b6ef5;
+    --border: #d3d7e3;
+    --check-a: #e2e4ec;
+    --check-b: #d8dae4;
+    --infobg: rgba(255,255,255,.94);
+    --shadow: rgba(30,40,80,.25);
+  }
+  :root[data-theme="dark"] {
+    --bg: #12131a;
+    --panel: #1c1e28;
+    --panel2: #242736;
+    --text: #e8eaf2;
+    --muted: #9aa0b4;
+    --accent: #5b8cff;
+    --border: #32364a;
+    --check-a: #191b24;
+    --check-b: #15161e;
+    --infobg: rgba(20,22,30,.92);
+    --shadow: rgba(0,0,0,.6);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  header {
+    padding: 10px 18px;
+    background: var(--panel);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    flex-wrap: wrap;
+  }
+  header h1 { font-size: 16px; font-weight: 600; white-space: nowrap; }
+  header .sub { font-size: 12px; color: var(--muted); }
+  main { flex: 1; display: flex; min-height: 0; }
+
+  /* ---------- Sidebar ---------- */
+  #sidebar {
+    width: 300px;
+    background: var(--panel);
+    border-right: 1px solid var(--border);
+    overflow-y: auto;
+    padding: 14px;
+    flex-shrink: 0;
+  }
+  .section-label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--muted);
+    margin: 16px 0 8px;
+  }
+  .section-label:first-child { margin-top: 0; }
+
+  #dropzone {
+    border: 2px dashed var(--border);
+    border-radius: 10px;
+    padding: 18px 12px;
+    text-align: center;
+    cursor: pointer;
+    color: var(--muted);
+    font-size: 13px;
+    transition: border-color .15s, background .15s;
+  }
+  #dropzone:hover, #dropzone.drag {
+    border-color: var(--accent);
+    background: rgba(91,140,255,0.08);
+    color: var(--text);
+  }
+  #dropzone strong { color: var(--accent); }
+  #fileInput { display: none; }
+  #fileMeta { font-size: 12px; color: var(--muted); margin-top: 8px; line-height: 1.5; word-break: break-all; }
+  #fileMeta .ok { color: #27a05f; }
+
+  .platform-group { margin-bottom: 4px; }
+  .platform-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 600;
+    user-select: none;
+  }
+  .platform-header:hover { background: var(--panel2); }
+  .platform-header .chev { margin-left: auto; font-size: 11px; color: var(--muted); transition: transform .15s; }
+  .platform-group.open .chev { transform: rotate(90deg); }
+  .platform-formats { display: none; padding-left: 6px; }
+  .platform-group.open .platform-formats { display: block; }
+
+  .format-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    text-align: left;
+    background: none;
+    border: 1px solid transparent;
+    border-radius: 8px;
+    color: var(--text);
+    padding: 7px 10px;
+    font-size: 13px;
+    cursor: pointer;
+    margin: 2px 0;
+  }
+  .format-btn:hover { background: var(--panel2); }
+  .format-btn:focus-visible, .platform-header:focus-visible, .btn:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+  }
+  .format-btn.active {
+    background: rgba(91,140,255,0.15);
+    border-color: var(--accent);
+  }
+  .format-btn .ratio-chip {
+    margin-left: auto;
+    font-size: 11px;
+    color: var(--muted);
+    background: var(--panel2);
+    padding: 1px 7px;
+    border-radius: 10px;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+  }
+  .format-btn.active .ratio-chip { background: rgba(91,140,255,0.3); color: var(--text); }
+
+  .toggle-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    padding: 6px 4px;
+    cursor: pointer;
+    user-select: none;
+  }
+  .toggle-row input { accent-color: var(--accent); width: 15px; height: 15px; cursor: pointer; }
+
+  .zoom-row { display: flex; align-items: center; gap: 8px; padding: 4px; font-size: 13px; }
+  .zoom-row input[type=range] { flex: 1; accent-color: var(--accent); min-width: 0; }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    padding: 9px 14px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    width: 100%;
+    margin-top: 6px;
+  }
+  .btn:hover { filter: brightness(1.1); }
+  .btn.secondary { background: var(--panel2); color: var(--text); border: 1px solid var(--border); }
+  .btn:disabled { opacity: .4; cursor: not-allowed; }
+  .hint { margin-top: 8px; font-size: 11.5px; color: var(--muted); line-height: 1.5; }
+
+  /* ---------- Stage ---------- */
+  #stage {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    min-width: 0;
+    min-height: 0;
+    padding: 20px;
+    background:
+      repeating-conic-gradient(var(--check-a) 0% 25%, var(--check-b) 0% 50%) 0 0 / 24px 24px;
+  }
+  #frameWrap {
+    position: relative;
+    box-shadow: 0 8px 40px var(--shadow);
+    background: #000;
+    overflow: hidden;
+    border-radius: 12px;
+    touch-action: none;
+  }
+  #mediaLayer {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    cursor: grab;
+  }
+  #mediaLayer.dragging { cursor: grabbing; }
+  #mediaLayer img, #mediaLayer video {
+    position: absolute;
+    top: 0; left: 0;
+    transform-origin: 0 0;
+    max-width: none;
+    user-select: none;
+    -webkit-user-drag: none;
+    pointer-events: none;
+  }
+  #overlayLayer { position: absolute; inset: 0; pointer-events: none; }
+  .zone {
+    position: absolute;
+    background: var(--danger);
+    border: 1px dashed var(--danger-border);
+  }
+  .zone span {
+    font-size: 10px;
+    font-weight: 700;
+    color: #fff;
+    background: rgba(200,40,40,.85);
+    padding: 2px 6px;
+    border-radius: 0 0 6px 0;
+    letter-spacing: .5px;
+    white-space: nowrap;
+    display: inline-block;
+  }
+  .grid-line { position: absolute; background: rgba(255,255,255,.35); }
+  #emptyMsg {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    color: #9aa0b4;
+    font-size: 14px;
+    text-align: center;
+    padding: 20px;
+    pointer-events: none;
+  }
+  #emptyMsg .big { font-size: 40px; }
+
+  /* ---------- Info bar ---------- */
+  #infobar {
+    position: absolute;
+    left: 50%;
+    bottom: 14px;
+    transform: translateX(-50%);
+    background: var(--infobg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 8px 16px;
+    font-size: 12.5px;
+    display: flex;
+    gap: 18px;
+    align-items: center;
+    white-space: nowrap;
+    backdrop-filter: blur(6px);
+    max-width: calc(100% - 24px);
+    overflow-x: auto;
+    font-variant-numeric: tabular-nums;
+  }
+  #infobar b { color: var(--accent); font-weight: 600; }
+  #infobar .warn { color: #c9950c; }
+  #infobar .good { color: #27a05f; }
+
+  @media (max-width: 720px) {
+    main { flex-direction: column; }
+    #sidebar {
+      width: 100%;
+      max-height: 45%;
+      border-right: none;
+      border-bottom: 1px solid var(--border);
+    }
+    header .sub { display: none; }
+  }
+</style>
+
+<header>
+  <h1>📐 Social Crop Previewer</h1>
+  <span class="sub">Import a photo or video → pick a platform → see exactly what gets cropped and where the UI covers your content.</span>
+</header>
+<main>
+  <div id="sidebar">
+    <div class="section-label">Media</div>
+    <div id="dropzone" role="button" tabindex="0">
+      <div>📁 <strong>Tap to browse</strong> or drag &amp; drop<br>an image or video here</div>
+    </div>
+    <input type="file" id="fileInput" accept="image/*,video/*">
+    <div id="fileMeta">No file loaded. Files stay on your device — nothing is uploaded.</div>
+
+    <div class="section-label">Platform &amp; Format</div>
+    <div id="platformList"></div>
+
+    <div class="section-label">View Options</div>
+    <label class="toggle-row"><input type="checkbox" id="toggleSafe" checked> Show UI overlay / safe zones</label>
+    <label class="toggle-row"><input type="checkbox" id="toggleGrid"> Show thirds grid</label>
+    <div class="zoom-row">
+      🔍 <input type="range" id="zoomSlider" min="0" max="300" value="0" aria-label="Zoom"> <span id="zoomLabel">100%</span>
+    </div>
+    <button class="btn secondary" id="resetBtn">Reset position &amp; zoom</button>
+
+    <div class="section-label">Export</div>
+    <button class="btn" id="exportBtn" disabled>⬇ Export cropped image (PNG)</button>
+    <div class="hint">
+      Video export saves the current paused frame. Drag the preview to reposition; pinch, scroll, or use the slider to zoom.
+    </div>
+  </div>
+
+  <div id="stage">
+    <div id="frameWrap">
+      <div id="mediaLayer"></div>
+      <div id="overlayLayer"></div>
+      <div id="emptyMsg"><div class="big">🖼️</div><div>Load a photo or video to preview crops</div></div>
+    </div>
+    <div id="infobar">
+      <span id="infoFormat">–</span>
+      <span id="infoTarget"></span>
+      <span id="infoSource"></span>
+      <span id="infoQuality"></span>
+    </div>
+  </div>
+</main>
+
+<script>
+/* ============================================================
+   Format catalog.
+   ratio = width/height of the crop frame.
+   target = recommended export dimensions in px.
+   zones = UI-covered / unsafe regions, in fractions of frame
+   size: {top,left,w,h,label}. Approximate but realistic app
+   UI layouts for TikTok / IG / FB.
+   ============================================================ */
+const VERTICAL_UI_ZONES = [
+  { top: 0,     left: 0,    w: 1,    h: 0.08, label: "TOP UI (username / camera)" },
+  { top: 0.60,  left: 0.82, w: 0.18, h: 0.30, label: "ICONS" },
+  { top: 0.82,  left: 0,    w: 0.82, h: 0.18, label: "CAPTION / NAV" },
+];
+
+const STORY_UI_ZONES = [
+  { top: 0,     left: 0,    w: 1,    h: 0.10, label: "TOP UI (profile / progress bar)" },
+  { top: 0.88,  left: 0,    w: 1,    h: 0.12, label: "REPLY BAR / CTA" },
+];
+
+const FORMATS = {
+  "TikTok": [
+    { name: "Video / Photo Post", ratio: 9/16, target: [1080, 1920], zones: VERTICAL_UI_ZONES },
+    { name: "Story",              ratio: 9/16, target: [1080, 1920], zones: STORY_UI_ZONES },
+    { name: "Profile Photo",      ratio: 1,    target: [200, 200],   zones: [] },
+  ],
+  "Instagram": [
+    { name: "Reel",               ratio: 9/16, target: [1080, 1920], zones: VERTICAL_UI_ZONES },
+    { name: "Story",              ratio: 9/16, target: [1080, 1920], zones: STORY_UI_ZONES },
+    { name: "Post — Portrait",    ratio: 4/5,  target: [1080, 1350], zones: [] },
+    { name: "Post — Square",      ratio: 1,    target: [1080, 1080], zones: [] },
+    { name: "Post — Landscape",   ratio: 1.91, target: [1080, 566],  zones: [] },
+    { name: "Carousel — Portrait",ratio: 4/5,  target: [1080, 1350], zones: [] },
+    { name: "Carousel — Square",  ratio: 1,    target: [1080, 1080], zones: [] },
+    { name: "Profile Photo",      ratio: 1,    target: [320, 320],   zones: [] },
+  ],
+  "Facebook": [
+    { name: "Feed Post — Square",   ratio: 1,     target: [1080, 1080], zones: [] },
+    { name: "Feed Post — Portrait", ratio: 4/5,   target: [1080, 1350], zones: [] },
+    { name: "Feed Post — Landscape",ratio: 1.91,  target: [1200, 630],  zones: [] },
+    { name: "Story / Reel",         ratio: 9/16,  target: [1080, 1920], zones: STORY_UI_ZONES },
+    { name: "Cover Photo",          ratio: 820/312, target: [820, 312], zones: [] },
+    { name: "Event Cover",          ratio: 1.91,  target: [1200, 628],  zones: [] },
+  ],
+};
+
+/* ---------------- State ---------------- */
+let media = null;           // <img> or <video> element
+let mediaW = 0, mediaH = 0; // natural dimensions
+let current = FORMATS["TikTok"][0];
+let zoom = 1;               // extra zoom on top of cover-fit
+let panX = 0, panY = 0;     // pan offset in frame px
+let frameW = 0, frameH = 0;
+
+const $ = (id) => document.getElementById(id);
+const frameWrap = $("frameWrap"), mediaLayer = $("mediaLayer"),
+      overlayLayer = $("overlayLayer"), stage = $("stage");
+
+/* ---------------- Sidebar build ---------------- */
+const platformList = $("platformList");
+Object.entries(FORMATS).forEach(([platform, formats], pi) => {
+  const group = document.createElement("div");
+  group.className = "platform-group" + (pi === 0 ? " open" : "");
+  const icons = { TikTok: "🎵", Instagram: "📷", Facebook: "👥" };
+  const header = document.createElement("div");
+  header.className = "platform-header";
+  header.tabIndex = 0;
+  header.innerHTML = `${icons[platform] || "▶"} ${platform} <span class="chev">▶</span>`;
+  header.onclick = () => group.classList.toggle("open");
+  header.onkeydown = (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); group.classList.toggle("open"); } };
+  group.appendChild(header);
+  const list = document.createElement("div");
+  list.className = "platform-formats";
+  formats.forEach((f) => {
+    const btn = document.createElement("button");
+    btn.className = "format-btn" + (f === current ? " active" : "");
+    btn.innerHTML = `${f.name} <span class="ratio-chip">${ratioLabel(f.ratio)}</span>`;
+    btn.onclick = () => {
+      current = f;
+      document.querySelectorAll(".format-btn").forEach(b => b.classList.remove("active"));
+      btn.classList.add("active");
+      resetView();
+      layout();
+    };
+    list.appendChild(btn);
+  });
+  group.appendChild(list);
+  platformList.appendChild(group);
+});
+
+function ratioLabel(r) {
+  const known = [[9/16,"9:16"],[4/5,"4:5"],[1,"1:1"],[1.91,"1.91:1"],[16/9,"16:9"],[820/312,"2.63:1"]];
+  for (const [v, l] of known) if (Math.abs(r - v) < 0.01) return l;
+  return r.toFixed(2) + ":1";
+}
+
+/* ---------------- File loading ---------------- */
+const dropzone = $("dropzone"), fileInput = $("fileInput");
+dropzone.onclick = () => fileInput.click();
+dropzone.onkeydown = (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); fileInput.click(); } };
+fileInput.onchange = () => fileInput.files[0] && loadFile(fileInput.files[0]);
+["dragover","dragenter"].forEach(ev => {
+  document.body.addEventListener(ev, e => { e.preventDefault(); dropzone.classList.add("drag"); });
+});
+["dragleave","drop"].forEach(ev => {
+  document.body.addEventListener(ev, e => { e.preventDefault(); if (ev === "drop" && e.dataTransfer.files[0]) loadFile(e.dataTransfer.files[0]); dropzone.classList.remove("drag"); });
+});
+
+function loadFile(file) {
+  const url = URL.createObjectURL(file);
+  mediaLayer.innerHTML = "";
+  $("emptyMsg").style.display = "none";
+  const isVideo = file.type.startsWith("video");
+  if (isVideo) {
+    media = document.createElement("video");
+    media.src = url;
+    media.muted = true; media.loop = true; media.playsInline = true; media.autoplay = true;
+    media.onloadedmetadata = () => {
+      mediaW = media.videoWidth; mediaH = media.videoHeight;
+      afterLoad(file);
+    };
+  } else {
+    media = document.createElement("img");
+    media.src = url;
+    media.onload = () => {
+      mediaW = media.naturalWidth; mediaH = media.naturalHeight;
+      afterLoad(file);
+    };
+  }
+  mediaLayer.appendChild(media);
+}
+
+function afterLoad(file) {
+  $("fileMeta").innerHTML =
+    `<span class="ok">✔ ${escapeHtml(file.name)}</span><br>${mediaW} × ${mediaH}px · ${(file.size/1024/1024).toFixed(2)} MB`;
+  $("exportBtn").disabled = false;
+  resetView();
+  layout();
+}
+
+function escapeHtml(s){ return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+/* ---------------- Layout & render ---------------- */
+function layout() {
+  const pad = 40;
+  const availW = stage.clientWidth - pad, availH = stage.clientHeight - pad - 50;
+  const r = current.ratio;
+  frameW = Math.min(availW, availH * r);
+  frameH = frameW / r;
+  frameWrap.style.width = frameW + "px";
+  frameWrap.style.height = frameH + "px";
+  drawOverlay();
+  positionMedia();
+  updateInfo();
+}
+
+function coverScale() {
+  if (!mediaW) return 1;
+  return Math.max(frameW / mediaW, frameH / mediaH);
+}
+
+function clampPan() {
+  const s = coverScale() * zoom;
+  const w = mediaW * s, h = mediaH * s;
+  const minX = frameW - w, minY = frameH - h;
+  panX = Math.min(0, Math.max(minX, panX));
+  panY = Math.min(0, Math.max(minY, panY));
+}
+
+function positionMedia() {
+  if (!media) return;
+  const s = coverScale() * zoom;
+  clampPan();
+  media.style.transform = `translate(${panX}px, ${panY}px) scale(${s})`;
+}
+
+function drawOverlay() {
+  overlayLayer.innerHTML = "";
+  if ($("toggleGrid").checked) {
+    for (let i = 1; i <= 2; i++) {
+      const v = document.createElement("div");
+      v.className = "grid-line";
+      v.style.cssText = `left:${(i/3)*100}%; top:0; width:1px; height:100%;`;
+      const h = document.createElement("div");
+      h.className = "grid-line";
+      h.style.cssText = `top:${(i/3)*100}%; left:0; height:1px; width:100%;`;
+      overlayLayer.append(v, h);
+    }
+  }
+  if ($("toggleSafe").checked) {
+    current.zones.forEach(z => {
+      const d = document.createElement("div");
+      d.className = "zone";
+      d.style.cssText = `left:${z.left*100}%; top:${z.top*100}%; width:${z.w*100}%; height:${z.h*100}%;`;
+      d.innerHTML = `<span>${z.label}</span>`;
+      overlayLayer.appendChild(d);
+    });
+  }
+}
+
+function updateInfo() {
+  const [tw, th] = current.target;
+  $("infoFormat").innerHTML = `<b>${currentPlatform()} · ${current.name}</b> (${ratioLabel(current.ratio)})`;
+  $("infoTarget").textContent = `Export: ${tw}×${th}px`;
+  if (mediaW) {
+    $("infoSource").textContent = `Source: ${mediaW}×${mediaH}px`;
+    const s = coverScale() * zoom;
+    const cropSrcW = Math.round(frameW / s), cropSrcH = Math.round(frameH / s);
+    const enough = cropSrcW >= tw && cropSrcH >= th;
+    $("infoQuality").innerHTML = enough
+      ? `<span class="good">✔ Crop covers ${cropSrcW}×${cropSrcH}px — sharp</span>`
+      : `<span class="warn">⚠ Crop only ${cropSrcW}×${cropSrcH}px — may look soft</span>`;
+  } else {
+    $("infoSource").textContent = "";
+    $("infoQuality").textContent = "";
+  }
+}
+
+function currentPlatform() {
+  for (const [p, fs] of Object.entries(FORMATS)) if (fs.includes(current)) return p;
+  return "";
+}
+
+/* ---------------- Pan & zoom ---------------- */
+function resetView() {
+  zoom = 1;
+  $("zoomSlider").value = 0;
+  $("zoomLabel").textContent = "100%";
+  const s = coverScale();
+  panX = (frameW - mediaW * s) / 2;
+  panY = (frameH - mediaH * s) / 2;
+}
+
+function setZoom(newZoom, cx, cy) {
+  const old = zoom;
+  zoom = Math.min(4, Math.max(1, newZoom));
+  panX = cx - (cx - panX) * (zoom / old);
+  panY = cy - (cy - panY) * (zoom / old);
+  $("zoomSlider").value = Math.round((zoom - 1) * 100);
+  $("zoomLabel").textContent = Math.round(zoom * 100) + "%";
+  positionMedia();
+  updateInfo();
+}
+
+$("zoomSlider").oninput = (e) => {
+  setZoom(1 + e.target.value / 100, frameW / 2, frameH / 2);
+};
+
+$("resetBtn").onclick = () => { resetView(); positionMedia(); updateInfo(); };
+$("toggleSafe").onchange = drawOverlay;
+$("toggleGrid").onchange = drawOverlay;
+
+/* Drag to pan + pinch to zoom (pointer events) */
+const pointers = new Map();
+let pinchStartDist = 0, pinchStartZoom = 1;
+let lastX = 0, lastY = 0;
+
+mediaLayer.addEventListener("pointerdown", (e) => {
+  if (!media) return;
+  pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  mediaLayer.setPointerCapture(e.pointerId);
+  if (pointers.size === 1) {
+    lastX = e.clientX; lastY = e.clientY;
+    mediaLayer.classList.add("dragging");
+  } else if (pointers.size === 2) {
+    const [a, b] = [...pointers.values()];
+    pinchStartDist = Math.hypot(a.x - b.x, a.y - b.y);
+    pinchStartZoom = zoom;
+  }
+});
+mediaLayer.addEventListener("pointermove", (e) => {
+  if (!pointers.has(e.pointerId)) return;
+  pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  if (pointers.size === 1) {
+    panX += e.clientX - lastX; panY += e.clientY - lastY;
+    lastX = e.clientX; lastY = e.clientY;
+    positionMedia();
+  } else if (pointers.size === 2 && pinchStartDist > 0) {
+    const [a, b] = [...pointers.values()];
+    const dist = Math.hypot(a.x - b.x, a.y - b.y);
+    const rect = frameWrap.getBoundingClientRect();
+    const cx = (a.x + b.x) / 2 - rect.left, cy = (a.y + b.y) / 2 - rect.top;
+    setZoom(pinchStartZoom * (dist / pinchStartDist), cx, cy);
+  }
+});
+const endPointer = (e) => {
+  pointers.delete(e.pointerId);
+  if (pointers.size < 2) pinchStartDist = 0;
+  if (pointers.size === 1) {
+    const [a] = [...pointers.values()];
+    lastX = a.x; lastY = a.y;
+  }
+  if (pointers.size === 0) mediaLayer.classList.remove("dragging");
+};
+mediaLayer.addEventListener("pointerup", endPointer);
+mediaLayer.addEventListener("pointercancel", endPointer);
+
+frameWrap.addEventListener("wheel", (e) => {
+  if (!media) return;
+  e.preventDefault();
+  const rect = frameWrap.getBoundingClientRect();
+  setZoom(zoom * (e.deltaY < 0 ? 1.08 : 1/1.08), e.clientX - rect.left, e.clientY - rect.top);
+}, { passive: false });
+
+/* ---------------- Export ---------------- */
+$("exportBtn").onclick = () => {
+  if (!media) return;
+  const [tw, th] = current.target;
+  const canvas = document.createElement("canvas");
+  canvas.width = tw; canvas.height = th;
+  const ctx = canvas.getContext("2d");
+  const s = coverScale() * zoom;
+  const sx = -panX / s, sy = -panY / s;
+  const sw = frameW / s, sh = frameH / s;
+  ctx.drawImage(media, sx, sy, sw, sh, 0, 0, tw, th);
+  const a = document.createElement("a");
+  a.download = `${currentPlatform()}_${current.name.replace(/[^\w]+/g, "-")}_${tw}x${th}.png`;
+  a.href = canvas.toDataURL("image/png");
+  a.click();
+};
+
+/* ---------------- Init ---------------- */
+window.addEventListener("resize", layout);
+layout();
+</script>
+</body>
+</html>
